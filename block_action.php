@@ -1,4 +1,5 @@
 <?php
+/*block_action.php*/
 session_start();
 require 'connect.php';
 

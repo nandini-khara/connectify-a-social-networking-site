@@ -20,10 +20,15 @@ $seen->execute();
 
 // Fetch messages WITH shared post info
 $stmt = $con->prepare("
-    SELECT m.sender_id, m.message_text, m.status, m.created_at,
-           m.shared_post_id,
-           p.post_text, p.post_img, p.post_video,
-           u.user_name AS post_author
+    SELECT m.sender_id, 
+       m.message_text,
+       m.media_path,
+       m.message_type,
+       m.status, 
+       m.created_at,
+       m.shared_post_id,
+       p.post_text, p.post_img, p.post_video,
+       u.user_name AS post_author
     FROM messages m
     LEFT JOIN post p ON m.shared_post_id = p.id
     LEFT JOIN users u ON p.user_id = u.user_id
@@ -80,7 +85,22 @@ while ($row = $result->fetch_assoc()):
         <?php endif; ?>
       </div>
     <?php endif; ?>
+<?php if (!empty($row['media_path'])): ?>
 
+  <?php if ($row['message_type'] === 'image'): ?>
+    <img src="<?= htmlspecialchars($row['media_path']) ?>"
+         style="max-width:200px; border-radius:8px;">
+
+  <?php elseif ($row['message_type'] === 'audio' || $row['message_type'] === 'voice'): ?>
+    <audio controls src="<?= htmlspecialchars($row['media_path']) ?>"></audio>
+
+  <?php else: ?>
+    <a href="<?= htmlspecialchars($row['media_path']) ?>" target="_blank">
+      📎 Download File
+    </a>
+  <?php endif; ?>
+
+<?php endif; ?>
     <?php if (!empty($row['message_text'])): ?>
       <div class="text"><?= nl2br(htmlspecialchars($row['message_text'])) ?></div>
     <?php endif; ?>
