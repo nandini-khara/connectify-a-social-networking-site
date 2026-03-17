@@ -9,11 +9,18 @@ require_once 'connect.php';
 $cp_uid = (int)$_SESSION['user_id'];
 
 /*
- * ── IMPORTANT CHANGE ──
- * We no longer filter out blocked users from the list.
- * They stay visible so you can still open the chat and unblock them.
- * The block only prevents SENDING messages (handled in JS + send_message.php).
+ * ── FIX 1: Load blocked user IDs so PHP can mark rows on page load ──
+ * This ensures the "blocked" styling survives page reloads.
  */
+$blk_stmt = $con->prepare("SELECT blocked_id FROM blocks WHERE blocker_id = ?");
+$blk_stmt->bind_param('i', $cp_uid);
+$blk_stmt->execute();
+$blk_res = $blk_stmt->get_result();
+$cp_blocked_ids = [];
+while ($br = $blk_res->fetch_assoc()) {
+    $cp_blocked_ids[] = (int)$br['blocked_id'];
+}
+
 $cp_sql = "
   SELECT
     u.user_id,
@@ -159,10 +166,30 @@ $cp_users = $cp_st->get_result();
 .cp-urow .cp-avatar-wrap{position:relative;flex-shrink:0;}
 .cp-urow img{width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--cp-acc);display:block;}
 
-/* blocked user row — dim slightly */
-.cp-urow.is-blocked img{border-color:#ff6b6b;opacity:.75;}
-.cp-urow.is-blocked .cp-uname{color:#ff8a8a;}
-.cp-urow.is-blocked .cp-usub{color:rgba(255,138,138,.6);}
+/* ── FIX 1: blocked row styles — applied both by PHP (on load) and JS (after action) ── */
+.cp-urow.is-blocked img{
+  border-color:#ff6b6b !important;
+  opacity:.65;
+  filter:grayscale(50%);
+}
+.cp-urow.is-blocked .cp-uname{color:#ff8a8a !important;}
+.cp-urow.is-blocked .cp-usub{color:rgba(255,138,138,.55) !important;}
+/* red "Blocked" badge pill on the row */
+.cp-urow.is-blocked .cp-uname::after{
+  content:'Blocked';
+  display:inline-block;
+  margin-left:6px;
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:.4px;
+  background:rgba(255,107,107,.18);
+  border:1px solid rgba(255,107,107,.45);
+  color:#ff8a8a;
+  border-radius:6px;
+  padding:1px 5px;
+  vertical-align:middle;
+  line-height:1.6;
+}
 
 .cp-unread-dot{
   position:absolute;top:-2px;right:-2px;
@@ -204,6 +231,22 @@ $cp_users = $cp_st->get_result();
 }
 .cp-postcard:hover{background:rgba(255,255,255,.14);}
 .cp-postcard img{width:100%;border-radius:8px;margin-bottom:4px;}
+
+/* ── FIX 2: deleted message placeholder ── */
+.cp-deleted-notice{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:7px 12px;
+  border-radius:14px;
+  font-size:.78rem;
+  font-style:italic;
+  color:var(--cp-sub);
+  background:rgba(255,255,255,.04);
+  border:1px dashed rgba(255,255,255,.12);
+  animation:cpIn .2s ease;
+}
+.cp-deleted-notice .cp-del-icon{font-size:13px;opacity:.7;}
 
 /* ── BLOCK BANNER ── */
 .cp-block-banner{
@@ -271,7 +314,7 @@ $cp_users = $cp_st->get_result();
 .cp-etab{font-size:17px;cursor:pointer;padding:3px 7px;border-radius:7px;transition:background .14s;}
 .cp-etab.on,.cp-etab:hover{background:var(--cp-surf);}
 .cp-egrid{display:flex;flex-wrap:wrap;gap:3px;max-height:150px;overflow-y:auto;}
-.cp-egrid span{font-size:20px;cursor:pointer;padding:3px;border-radius:7px;transition:background .14s;}
+.cp-egrid span{font-size:20px;cursor:pointer;padding:3px;border-radius:7px;transition:background .14px;}
 .cp-egrid span:hover{background:var(--cp-surf);}
 .cp-gif-srch{width:100%;background:var(--cp-inp);border:1px solid var(--cp-bdr);border-radius:10px;color:var(--cp-txt);padding:6px 10px;margin-bottom:6px;outline:none;font-size:.81rem;}
 .cp-ggrid{display:grid;grid-template-columns:1fr 1fr;gap:4px;max-height:150px;overflow-y:auto;}
@@ -296,13 +339,14 @@ $cp_users = $cp_st->get_result();
 
 #cpCtx{
   position:fixed;background:var(--cp-bg);border:1px solid var(--cp-bdr);
-  border-radius:12px;overflow:hidden;z-index:99999;min-width:165px;
+  border-radius:12px;overflow:hidden;z-index:99999;min-width:185px;
   box-shadow:0 8px 30px rgba(0,0,0,.5);display:none;
 }
 #cpCtx.on{display:block;animation:cpPop .14s ease;}
 .cp-ci{padding:10px 15px;font-size:.83rem;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .14s;color:var(--cp-txt);}
 .cp-ci:hover{background:var(--cp-surf);}
 .cp-ci.red{color:#ff6b6b;}
+.cp-ctx-divider{height:1px;background:var(--cp-bdr);margin:2px 0;}
 
 @keyframes cpPop{from{opacity:0;transform:scale(.9);}}
 
@@ -350,15 +394,20 @@ $cp_users = $cp_st->get_result();
     <?php if($cp_users->num_rows===0): ?>
       <p style="padding:16px;color:var(--cp-sub);font-size:.85rem;">No conversations yet</p>
     <?php else: while($cpu=$cp_users->fetch_assoc()):
-      $cpImg    = !empty($cpu['profile_image']) ? htmlspecialchars($cpu['profile_image']) : 'default_profile.png';
-      $cpName   = htmlspecialchars($cpu['user_name']);
-      $cpUnread = (int)$cpu['unread_count'];
+      $cpImg      = !empty($cpu['profile_image']) ? htmlspecialchars($cpu['profile_image']) : 'default_profile.png';
+      $cpName     = htmlspecialchars($cpu['user_name']);
+      $cpUnread   = (int)$cpu['unread_count'];
+      /* FIX 1: mark blocked users server-side so style survives reload */
+      $cpIsBlocked = in_array((int)$cpu['user_id'], $cp_blocked_ids);
     ?>
-      <div class="cp-urow <?= $cpUnread > 0 ? 'has-unread' : '' ?>"
+      <div class="cp-urow
+                  <?= $cpUnread > 0   ? 'has-unread' : '' ?>
+                  <?= $cpIsBlocked    ? 'is-blocked'  : '' ?>"
            data-uid="<?=$cpu['user_id']?>"
            data-name="<?=$cpName?>"
            data-img="<?=$cpImg?>"
-           data-unread="<?=$cpUnread?>">
+           data-unread="<?=$cpUnread?>"
+           data-blocked="<?= $cpIsBlocked ? '1' : '0' ?>">
         <div class="cp-avatar-wrap">
           <img src="<?=$cpImg?>" alt="<?=$cpName?>">
           <?php if($cpUnread > 0): ?>
@@ -366,8 +415,13 @@ $cp_users = $cp_st->get_result();
           <?php endif; ?>
         </div>
         <div>
-          <div class="cp-uname">@<?=$cpName?></div>
-          <div class="cp-usub"><?= $cpUnread > 0 ? $cpUnread.' new message'.($cpUnread>1?'s':'') : 'Tap to chat' ?></div>
+          <div class="cp-uname"><?=$cpName?></div>
+          <div class="cp-usub">
+            <?php if($cpIsBlocked):   ?>Blocked
+            <?php elseif($cpUnread>0):?><?=$cpUnread?> new message<?=$cpUnread>1?'s':''?>
+            <?php else:               ?>Tap to chat
+            <?php endif; ?>
+          </div>
         </div>
       </div>
     <?php endwhile; endif; ?>
@@ -422,10 +476,13 @@ $cp_users = $cp_st->get_result();
   <div class="cp-km red" id="cpKMBlock">🚫 Block User</div>
 </div>
 
+<!-- FIX 2: Context menu with Copy + Forward + divider + Delete options -->
 <div id="cpCtx">
-  <div class="cp-ci" id="cpCtxCopy">📋 Copy</div>
-  <div class="cp-ci" id="cpCtxDelMe">🗑 Delete for Me</div>
-  <div class="cp-ci red" id="cpCtxDelAll">🗑 Delete for Everyone</div>
+  <div class="cp-ci" id="cpCtxCopy">📋 Copy Text</div>
+  <div class="cp-ci" id="cpCtxForward">↗️ Forward</div>
+  <div class="cp-ctx-divider"></div>
+  <div class="cp-ci red" id="cpCtxDelMe">🗑️ Delete for Me</div>
+  <div class="cp-ci red" id="cpCtxDelAll">❌ Delete for Everyone</div>
 </div>
 
 <div id="cpToast"></div>
@@ -467,13 +524,14 @@ const kebab    = document.getElementById('cpKebab');
 const toast    = document.getElementById('cpToast');
 const blockBtn = document.getElementById('cpKMBlock');
 
-let uid          = null;
-let ctxMsgId     = null;
-let files        = [];
-let pollT        = null;
+let uid            = null;
+let ctxMsgId       = null;
+let ctxMsgIsMine   = false;  // FIX 2: track ownership for context menu
+let files          = [];
+let pollT          = null;
 let fileDialogOpen = false;
-let confirmOpen  = false;  // ← KEY FIX: prevents panel closing during confirm/prompt
-let isBlocked    = false;  // whether I blocked the current chat user
+let confirmOpen    = false;
+let isBlocked      = false;
 
 let userScrolled = false;
 let lastMsgHash  = '';
@@ -501,9 +559,7 @@ function closePanel() {
 closeBtn.addEventListener('click', closePanel);
 
 document.addEventListener('click', e => {
-  /* KEY FIX: do nothing while a confirm/prompt dialog is open */
   if (fileDialogOpen || confirmOpen) return;
-
   if (panel.classList.contains('cp-open') && !panel.contains(e.target) &&
       e.target !== openBtn && !openBtn?.contains(e.target)) {
     closePanel();
@@ -539,7 +595,7 @@ function showList() {
   document.querySelector('.cp-bar').style.display = '';
 }
 
-/* ── Check block status ── */
+/* ── Check block status via AJAX ── */
 function checkBlockStatus(targetUid, callback) {
   fetch('check_block.php', {
     method: 'POST',
@@ -586,30 +642,22 @@ function renderBlockBanner(blocked) {
   }
 }
 
-/* ── Mark row as blocked in the list ── */
+/* ── FIX 1: Mark row blocked/unblocked in sidebar list ── */
 function markRowBlocked(targetUid, blocked) {
   const row = uList.querySelector(`.cp-urow[data-uid="${targetUid}"]`);
   if (!row) return;
+  const sub = row.querySelector('.cp-usub');
   if (blocked) {
     row.classList.add('is-blocked');
-    const sub = row.querySelector('.cp-usub');
+    row.dataset.blocked = '1';
     if (sub) sub.textContent = 'Blocked';
-    moveRowToBottom(row);   // push blocked user to bottom of list
+    // Move to bottom of list so unblocked users stay on top
+    uList.appendChild(row);
   } else {
     row.classList.remove('is-blocked');
-    const sub = row.querySelector('.cp-usub');
+    row.dataset.blocked = '0';
     if (sub) sub.textContent = 'Tap to chat';
-    // Don't re-sort on unblock — they stay where they are
-  }
-}
-
-/* ── List ordering helpers ── */
-function moveRowToBottom(row) {
-  uList.appendChild(row); // moves to end of list
-}
-function moveRowToTop(targetUid) {
-  const row = uList.querySelector(`.cp-urow[data-uid="${targetUid}"]`);
-  if (row && !row.classList.contains('is-blocked')) {
+    // Move back to top (recent)
     uList.insertBefore(row, uList.firstElementChild);
   }
 }
@@ -631,11 +679,21 @@ uList.addEventListener('click', e => {
   lastMsgHash = ''; userScrolled = false;
   clearBadge(uid);
 
+  /* FIX 1: use data-blocked from PHP-rendered HTML first,
+     then confirm with a fresh AJAX call */
+  const preBlocked = row.dataset.blocked === '1';
+  updateBlockBtn(preBlocked);
+  renderBlockBanner(preBlocked);
+  loadMsgs(uid, true);
+  if (!preBlocked) startPoll(uid);
+
+  // Async confirmation to keep UI snappy
   checkBlockStatus(uid, (blocked) => {
-    updateBlockBtn(blocked);
-    renderBlockBanner(blocked);
-    loadMsgs(uid, true);
-    if (!blocked) startPoll(uid);
+    if (blocked !== preBlocked) {
+      updateBlockBtn(blocked);
+      renderBlockBanner(blocked);
+      if (!blocked) startPoll(uid); else stopPoll();
+    }
   });
 });
 
@@ -647,7 +705,7 @@ function clearBadge(targetUid) {
   if (row) {
     row.classList.remove('has-unread');
     const sub = row.querySelector('.cp-usub');
-    if (sub && !row.classList.contains('is-blocked')) sub.textContent = 'Tap to chat';
+    if (sub && row.dataset.blocked !== '1') sub.textContent = 'Tap to chat';
   }
 }
 function updateBadge(targetUid, count) {
@@ -657,7 +715,7 @@ function updateBadge(targetUid, count) {
   if (count > 0) {
     row.classList.add('has-unread');
     const sub = row.querySelector('.cp-usub');
-    if (sub) sub.textContent = count + ' new message' + (count > 1 ? 's' : '');
+    if (sub && row.dataset.blocked !== '1') sub.textContent = count + ' new message' + (count > 1 ? 's' : '');
     if (!badge) {
       const wrap = row.querySelector('.cp-avatar-wrap');
       badge = document.createElement('span');
@@ -688,7 +746,7 @@ function loadMsgs(u, force) {
   })
   .then(r => r.text())
   .then(html => {
-    if (html === lastMsgHash) return;
+    if (html === lastMsgHash && !force) return;
     lastMsgHash = html;
     const wasAtBottom = msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 80;
     msgs.innerHTML = html;
@@ -770,6 +828,11 @@ function doSend() {
 sendBtn.addEventListener('click', doSend);
 txtInp.addEventListener('keydown', e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();doSend();} });
 
+function moveRowToTop(targetUid) {
+  const row = uList.querySelector(`.cp-urow[data-uid="${targetUid}"]`);
+  if (row && row.dataset.blocked !== '1') uList.insertBefore(row, uList.firstElementChild);
+}
+
 /* ── Media popup ── */
 plusBtn.addEventListener('click',e=>{e.stopPropagation();mpop.classList.toggle('on');if(!mpop.classList.contains('on'))closeSubPicks();});
 mpop.addEventListener('click',e=>e.stopPropagation());
@@ -847,8 +910,6 @@ blockBtn.addEventListener('click', () => {
   if (isBlocked) {
     doUnblock();
   } else {
-    /* KEY FIX: keep confirmOpen true for 300ms AFTER dialog closes,
-       because the browser fires a click event when the dialog dismisses */
     confirmOpen = true;
     const yes = confirm('Block this user?');
     setTimeout(() => { confirmOpen = false; }, 300);
@@ -868,8 +929,8 @@ function doBlock() {
     if (d.status === 'success') {
       toast_('User blocked');
       updateBlockBtn(true);
-      renderBlockBanner(true);   // show banner, hide input bar
-      markRowBlocked(uid, true); // dim the row in the list
+      renderBlockBanner(true);
+      markRowBlocked(uid, true);
       stopPoll();
     } else {
       toast_('Could not block: ' + (d.message || 'unknown'));
@@ -889,8 +950,8 @@ function doUnblock() {
     if (d.status === 'success') {
       toast_('User unblocked');
       updateBlockBtn(false);
-      renderBlockBanner(false);   // remove banner, show input bar
-      markRowBlocked(uid, false); // restore row in the list
+      renderBlockBanner(false);
+      markRowBlocked(uid, false);
       loadMsgs(uid, true);
       startPoll(uid);
     } else {
@@ -900,7 +961,7 @@ function doUnblock() {
   .catch(() => toast_('Network error'));
 }
 
-/* ── Report ── */
+/* ── Report ── 
 document.querySelector('.cp-kreport').addEventListener('click', () => {
   kebab.classList.remove('on');
   if (!uid) return;
@@ -911,36 +972,139 @@ document.querySelector('.cp-kreport').addEventListener('click', () => {
   fetch('report_user.php', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:`reported_id=${uid}&reason=${encodeURIComponent(reason)}`})
   .then(r=>r.json()).then(d=>toast_(d.status==='reported'?'User reported':'Could not report')).catch(()=>toast_('Network error'));
 });
-
-/* ── Context menu ── */
+*/
+/* ── Report ── */
+document.querySelector('.cp-kreport').addEventListener('click', () => {
+  kebab.classList.remove('on');
+  if (!uid) return;
+  confirmOpen = true;
+  const reason = prompt('Why are you reporting this user?');
+  setTimeout(() => { confirmOpen = false; }, 300);
+  if (!reason || !reason.trim()) return;
+  fetch('report_user.php', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: `reported_id=${uid}&reason=${encodeURIComponent(reason.trim())}`
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.status === 'reported')
+      toast_('✅ Report submitted — our team will review it');
+    else if (d.status === 'already_reported')
+      toast_('⚠️ You already reported this account. We\'re reviewing it.');
+    else
+      toast_('❌ ' + (d.message || 'Could not submit report'));
+  })
+  .catch(() => toast_('❌ Network error'));
+});
+/* ══════════════════════════════════════════════════
+   FIX 2: RIGHT-CLICK CONTEXT MENU — full delete fix
+══════════════════════════════════════════════════ */
 msgs.addEventListener('contextmenu', e => {
-  const m = e.target.closest('.cp-msg,.chat-message'); if (!m) return;
+  const msgEl = e.target.closest('.cp-msg, .chat-message');
+  if (!msgEl) { ctx.classList.remove('on'); return; }
   e.preventDefault();
-  ctxMsgId = m.dataset.msgId || m.dataset.messageId || null;
-  document.getElementById('cpCtxDelAll').style.display = m.classList.contains('me') ? '' : 'none';
-  ctx.style.left = Math.min(e.clientX, window.innerWidth  - 175) + 'px';
-  ctx.style.top  = Math.min(e.clientY, window.innerHeight - 120) + 'px';
+
+  ctxMsgId   = msgEl.dataset.msgId || msgEl.dataset.messageId || null;
+  ctxMsgIsMine = msgEl.classList.contains('me');
+
+  // Show "Delete for Everyone" only if it's the user's own message
+  document.getElementById('cpCtxDelAll').style.display = ctxMsgIsMine ? 'flex' : 'none';
+
+  // Position safely within viewport
+  const mw = 185, mh = 160;
+  let x = e.clientX, y = e.clientY;
+  if (x + mw > window.innerWidth)  x = window.innerWidth  - mw - 8;
+  if (y + mh > window.innerHeight) y = window.innerHeight - mh - 8;
+  ctx.style.left = x + 'px';
+  ctx.style.top  = y + 'px';
   ctx.classList.add('on');
 });
+
+/* Copy */
 document.getElementById('cpCtxCopy').addEventListener('click', () => {
-  const el=msgs.querySelector(`[data-msg-id="${ctxMsgId}"],[data-message-id="${ctxMsgId}"]`);
-  const t=el?.querySelector('.cp-bub,.message-bubble')?.textContent||'';
-  navigator.clipboard.writeText(t).then(()=>toast_('Copied!'));
+  ctx.classList.remove('on');
+  if (!ctxMsgId) return;
+  const el  = msgs.querySelector(`[data-msg-id="${ctxMsgId}"], [data-message-id="${ctxMsgId}"]`);
+  const bub = el?.querySelector('.cp-bub, .message-bubble');
+  if (!bub) return;
+  // Clone and strip .cp-meta / time spans before reading text
+  const clone = bub.cloneNode(true);
+  clone.querySelectorAll('.cp-meta, .time, time').forEach(n => n.remove());
+  navigator.clipboard.writeText(clone.innerText.trim())
+    .then(() => toast_('✅ Copied to clipboard'))
+    .catch(()  => toast_('Copy failed'));
 });
-document.getElementById('cpCtxDelMe').addEventListener('click',()=>delMsg('me'));
-document.getElementById('cpCtxDelAll').addEventListener('click',()=>{
+
+/* Forward */
+document.getElementById('cpCtxForward').addEventListener('click', () => {
+  ctx.classList.remove('on');
+  if (ctxMsgId) window.location.href = 'forward.php?message_id=' + ctxMsgId;
+});
+
+/* Delete for Me */
+document.getElementById('cpCtxDelMe').addEventListener('click', () => {
+  ctx.classList.remove('on');
+  if (!ctxMsgId) return;
+  performDelete(ctxMsgId, 'me');
+});
+
+/* Delete for Everyone */
+document.getElementById('cpCtxDelAll').addEventListener('click', () => {
+  ctx.classList.remove('on');
+  if (!ctxMsgId) return;
   confirmOpen = true;
-  const yes = confirm('Delete for everyone?');
+  const yes = confirm('Delete this message for everyone? This cannot be undone.');
   setTimeout(() => { confirmOpen = false; }, 300);
-  if (yes) delMsg('all');
+  if (!yes) return;
+  performDelete(ctxMsgId, 'all');
 });
-function delMsg(scope){
-  if(!ctxMsgId)return;
-  fetch('delete_message.php',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:`message_id=${ctxMsgId}&scope=${scope}`})
-  .then(r=>r.json()).then(d=>{
-    if(d.status==='success'){const el=msgs.querySelector(`[data-msg-id="${ctxMsgId}"],[data-message-id="${ctxMsgId}"]`);if(el)el.remove();}
-    else toast_(d.msg||'Could not delete');
-  }).catch(()=>toast_('Network error'));
+
+/*
+ * ── FIX 2 CORE: performDelete ──
+ * 1. Calls delete_message.php on the server (hard or soft delete)
+ * 2. On success: replaces the bubble with a styled "deleted" notice
+ *    instead of fully removing the element (keeps the row visible)
+ * 3. Shows a toast confirming the action
+ */
+function performDelete(msgId, scope) {
+  fetch('delete_message.php', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: `message_id=${encodeURIComponent(msgId)}&scope=${encodeURIComponent(scope)}`
+  })
+  .then(r => r.text())
+  .then(raw => {
+    let d;
+    try { d = JSON.parse(raw); }
+    catch(e) { toast_('Server error'); console.error('delete_message.php returned non-JSON:', raw); return; }
+
+    if (d.status === 'success') {
+      // Replace bubble content with a deleted notice
+      const el  = msgs.querySelector(`[data-msg-id="${msgId}"], [data-message-id="${msgId}"]`);
+      const bub = el?.querySelector('.cp-bub, .message-bubble');
+      if (bub) {
+        const label = scope === 'all'
+          ? '🗑️ You deleted this message for everyone'
+          : '🗑️ You deleted this message';
+        bub.innerHTML = `<span class="cp-deleted-notice"><span class="cp-del-icon">🗑️</span>${scope === 'all' ? 'You deleted this message for everyone' : 'You deleted this message'}</span>`;
+        bub.style.background = 'transparent';
+        bub.style.padding    = '0';
+      }
+      // Remove any context-menu click target data so it can't be re-deleted
+      if (el) {
+        el.removeAttribute('data-msg-id');
+        el.removeAttribute('data-message-id');
+      }
+      const toastMsg = scope === 'all'
+        ? '✅ Message deleted for everyone'
+        : '✅ Message deleted for you';
+      toast_(toastMsg);
+    } else {
+      toast_('❌ ' + (d.msg || d.message || 'Could not delete message'));
+    }
+  })
+  .catch(() => toast_('Network error'));
 }
 
 /* ── Post card ── */
@@ -948,7 +1112,7 @@ msgs.addEventListener('click',e=>{const c=e.target.closest('.cp-postcard');if(c)
 
 /* ── Toast ── */
 let toastT;
-function toast_(msg){toast.textContent=msg;toast.style.opacity='1';clearTimeout(toastT);toastT=setTimeout(()=>{toast.style.opacity='0';},2500);}
+function toast_(msg){toast.textContent=msg;toast.style.opacity='1';clearTimeout(toastT);toastT=setTimeout(()=>{toast.style.opacity='0';},2600);}
 
 })();
 </script>

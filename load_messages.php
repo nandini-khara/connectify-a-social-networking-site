@@ -1,4 +1,5 @@
 <?php
+/* load_messages.php */
 session_start();
 require 'connect.php';
 
@@ -18,25 +19,38 @@ $seen = $con->prepare("
 $seen->bind_param("ii", $user_id, $other_id);
 $seen->execute();
 
-// Fetch messages WITH shared post info
+// ── FIX 1: m.message_id added to SELECT (was completely missing)
+// ── FIX 2: AND NOT EXISTS added to hide soft-deleted rows for this user
+// ── FIX 3: bind_param changed from "iiii" to "iiiii" (5th ? = NOT EXISTS)
 $stmt = $con->prepare("
-    SELECT m.sender_id, 
-       m.message_text,
-       m.media_path,
-       m.message_type,
-       m.status, 
-       m.created_at,
-       m.shared_post_id,
-       p.post_text, p.post_img, p.post_video,
-       u.user_name AS post_author
-    FROM messages m
-    LEFT JOIN post p ON m.shared_post_id = p.id
-    LEFT JOIN users u ON p.user_id = u.user_id
-    WHERE (m.sender_id=? AND m.receiver_id=?)
-       OR (m.sender_id=? AND m.receiver_id=?)
+    SELECT m.message_id,
+           m.sender_id,
+           m.message_text,
+           m.media_path,
+           m.message_type,
+           m.status,
+           m.created_at,
+           m.shared_post_id,
+           p.post_text,
+           p.post_img,
+           p.post_video,
+           u.user_name AS post_author
+    FROM   messages m
+    LEFT JOIN post  p ON p.id      = m.shared_post_id
+    LEFT JOIN users u ON u.user_id = p.user_id
+    WHERE (
+              (m.sender_id = ? AND m.receiver_id = ?)
+           OR (m.sender_id = ? AND m.receiver_id = ?)
+          )
+      AND NOT EXISTS (
+              SELECT 1
+              FROM   message_deletions md
+              WHERE  md.message_id = m.message_id
+                AND  md.user_id    = ?
+          )
     ORDER BY m.created_at ASC
 ");
-$stmt->bind_param("iiii", $user_id, $other_id, $other_id, $user_id);
+$stmt->bind_param("iiiii", $user_id, $other_id, $other_id, $user_id, $user_id);
 $stmt->execute();
 $result = $stmt->get_result();
 
@@ -45,62 +59,59 @@ while ($row = $result->fetch_assoc()):
     $sideClass = $isMe ? 'me' : 'them';
     $time      = date('h:i A', strtotime($row['created_at']));
 
-    // Status ticks
     $statusIcon = '';
     if ($isMe) {
-        if ($row['status'] === 'sent')      $statusIcon = '✔';
+        if     ($row['status'] === 'sent')      $statusIcon = '✔';
         elseif ($row['status'] === 'delivered') $statusIcon = '✔✔';
-        elseif ($row['status'] === 'seen')  $statusIcon = '<span class="seen">✔✔</span>';
+        elseif ($row['status'] === 'seen')      $statusIcon = '<span class="seen">✔✔</span>';
     }
 ?>
 
-<div class="chat-message <?= $sideClass ?>">
+<!-- ── FIX 4: data-message-id is on the OUTER div so JS querySelector finds it -->
+<div class="chat-message <?= $sideClass ?>"
+     data-message-id="<?= (int)$row['message_id'] ?>">
+
   <div class="message-bubble">
 
     <?php if (!empty($row['shared_post_id'])): ?>
-      <!-- ✅ Shared post preview card -->
-      <div style="border:1px solid #ddd; border-radius:8px; padding:8px;
-                  background:#f9f9f9; color:#333; font-size:13px; max-width:220px;">
-        <div style="font-weight:600; margin-bottom:4px; color:#6a1b9a;">
-          📤 Shared Post
-        </div>
+      <div style="border:1px solid #ddd;border-radius:8px;padding:8px;
+                  background:#f9f9f9;color:#333;font-size:13px;max-width:220px;">
+        <div style="font-weight:600;margin-bottom:4px;color:#6a1b9a;">📤 Shared Post</div>
         <?php if (!empty($row['post_author'])): ?>
-          <div style="font-size:11px; color:#888; margin-bottom:4px;">
+          <div style="font-size:11px;color:#888;margin-bottom:4px;">
             by @<?= htmlspecialchars($row['post_author']) ?>
           </div>
         <?php endif; ?>
         <?php if (!empty($row['post_img'])): ?>
           <img src="<?= htmlspecialchars($row['post_img']) ?>"
-               style="width:100%; border-radius:6px; margin-bottom:4px;">
+               style="width:100%;border-radius:6px;margin-bottom:4px;">
         <?php endif; ?>
         <?php if (!empty($row['post_video'])): ?>
           <video src="<?= htmlspecialchars($row['post_video']) ?>"
-                 controls style="width:100%; border-radius:6px; margin-bottom:4px;"></video>
+                 controls style="width:100%;border-radius:6px;margin-bottom:4px;"></video>
         <?php endif; ?>
         <?php if (!empty($row['post_text'])): ?>
           <div style="font-size:12px;">
             <?= nl2br(htmlspecialchars(substr($row['post_text'], 0, 100))) ?>
-            <?= strlen($row['post_text']) > 100 ? '...' : '' ?>
+            <?= strlen($row['post_text']) > 100 ? '…' : '' ?>
           </div>
         <?php endif; ?>
       </div>
     <?php endif; ?>
-<?php if (!empty($row['media_path'])): ?>
 
-  <?php if ($row['message_type'] === 'image'): ?>
-    <img src="<?= htmlspecialchars($row['media_path']) ?>"
-         style="max-width:200px; border-radius:8px;">
+    <?php if (!empty($row['media_path'])): ?>
+      <?php if ($row['message_type'] === 'image'): ?>
+        <img src="<?= htmlspecialchars($row['media_path']) ?>"
+             style="max-width:200px;border-radius:8px;">
+      <?php elseif (in_array($row['message_type'], ['audio','voice'])): ?>
+        <audio controls src="<?= htmlspecialchars($row['media_path']) ?>"></audio>
+      <?php else: ?>
+        <a href="<?= htmlspecialchars($row['media_path']) ?>" target="_blank">
+          📎 Download File
+        </a>
+      <?php endif; ?>
+    <?php endif; ?>
 
-  <?php elseif ($row['message_type'] === 'audio' || $row['message_type'] === 'voice'): ?>
-    <audio controls src="<?= htmlspecialchars($row['media_path']) ?>"></audio>
-
-  <?php else: ?>
-    <a href="<?= htmlspecialchars($row['media_path']) ?>" target="_blank">
-      📎 Download File
-    </a>
-  <?php endif; ?>
-
-<?php endif; ?>
     <?php if (!empty($row['message_text'])): ?>
       <div class="text"><?= nl2br(htmlspecialchars($row['message_text'])) ?></div>
     <?php endif; ?>

@@ -1,6 +1,6 @@
 <?php
 session_start();
-
+include 'getdark_mode.php';
 function formatNotificationMessage($row) {
   $username = '@' . htmlspecialchars($row['user_name']);
   $profileLink = 'public_profile.php?user_id=' . $row['actor_id'];
@@ -120,6 +120,7 @@ $notifications = $stmt->get_result();
       background: #c084fc;
       border-radius: 3px;
     }
+    
   </style>
 </head>
 <body>

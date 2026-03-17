@@ -1,59 +1,328 @@
-/* General dark background */
-body, html {
-  background-color: #121212 !important;
+/* ===== DARK MODE MAIN ===== */
+
+body.dark-mode {
+  background-color: #1a1a1a !important;
   color: #ffffff !important;
 }
 
-/* Basic text elements */
-a, p, h1, h2, h3, h4, h5, h6, span, div, input, textarea, select, label {
-  background-color: transparent !important;
+
+/* ===== HEADER ===== */
+
+body.dark-mode header {
+  background-color: #232323 !important;
+  border-bottom: 1px solid #333 !important;
+}
+
+body.dark-mode header a,
+body.dark-mode header span,
+body.dark-mode header i {
   color: #ffffff !important;
-  border-color: #444 !important;
 }
 
-/* Form fields */
-input, textarea, select {
-  background-color: #1e1e1e !important;
-  color: #fff !important;
-  border: 1px solid #444 !important;
+
+/* ===== MAIN PAGE LAYOUT ===== */
+
+body.dark-mode main {
+  background-color: #1a1a1a !important;
 }
 
-/* Keep regular links bright */
-a {
-  color: #bb86fc !important;
+
+/* ===== FEED AREA ===== */
+
+body.dark-mode .feed {
+  background-color: #232323 !important;
+  border-right: 1px solid #333 !important;
 }
 
-/* Main containers */
-.settings-container,
-.card,
-.section,
-.header,
-.footer {
-  background-color: #1e1e1e !important;
-  color: #fff !important;
+
+/* ===== POSTS ===== */
+
+body.dark-mode .post {
+  background-color: #232323 !important;
+  border: 1px solid #333 !important;
+  color: #ffffff !important;
 }
 
-/* Keep buttons colorful (don't darken them!) */
-button,
-.link-btn,
-.action-btn {
-  background-color: #6a1b9a !important;  /* Or use the same class color */
-  color: #fff !important;
+body.dark-mode .post textarea {
+  background-color: #1a1a1a !important;
+  color: #ffffff !important;
+  border: 1px solid #333 !important;
+}
+
+
+/* ===== STORIES ===== */
+
+body.dark-mode .stories {
+  background-color: #232323 !important;
+  border: 1px solid #333 !important;
+}
+
+body.dark-mode .story {
+  background-color: #2a2a2a !important;
+  color: #ffffff !important;
+}
+
+
+/* ===== RIGHT SIDEBAR ===== */
+
+body.dark-mode .right-sidebar {
+  background-color: #232323 !important;
+  border-left: 1px solid #333 !important;
+}
+
+
+/* ===== SIDEBAR CARDS ===== */
+
+body.dark-mode .sidebar-card {
+  background-color: #232323 !important;
+  border: 1px solid #333 !important;
+  color: #ffffff !important;
+}
+
+
+/* ===== TEXT ELEMENTS ===== */
+
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode p,
+body.dark-mode span {
+  color: #ffffff !important;
+}
+
+
+/* ===== INPUT FIELDS ===== */
+
+body.dark-mode input,
+body.dark-mode textarea {
+  background-color: #1a1a1a !important;
+  border: 1px solid #333 !important;
+  color: #ffffff !important;
+}
+
+
+/* ===== BUTTONS ===== */
+
+body.dark-mode button {
+  background-color: #7b2cbf !important;
+  color: #ffffff !important;
   border: none !important;
 }
 
-/* Danger buttons */
-.danger-btn {
-  background-color: #e53935 !important;
+body.dark-mode button:hover {
+  background-color: #6923a7 !important;
 }
 
-/* Toggle switch fix */
-.switch .slider {
-  background-color: #444 !important;
+
+/* ===== LINKS ===== */
+
+body.dark-mode a {
+  color: #ffffff !important;
 }
-.switch input:checked + .slider {
-  background-color: #6a1b9a !important;
+
+
+/* ===== SHARE / MESSAGE SIDEBAR ===== */
+
+body.dark-mode .share-sidebar {
+  background-color: #232323 !important;
+  border-left: 1px solid #333 !important;
 }
-.switch .slider:before {
-  background-color: white !important;
+
+
+
+/* ===== RIGHT SIDEBAR FULL FIX ===== */
+body.dark-mode .right-sidebar {
+  background-color: #1a1a1a !important;
+  border-left: 1px solid #333 !important;
+}
+
+/* ===== STORIES SECTION ===== */
+body.dark-mode .stories {
+  background-color: #2a2a2a !important;
+  border: 1px solid #333 !important;
+  color: #ffffff !important;
+}
+
+body.dark-mode .story {
+  background-color: #333333 !important;
+  color: #ffffff !important;
+  border: 1px solid #444 !important;
+}
+
+body.dark-mode .create-story {
+  background-color: #2a2a2a !important;
+  border: 2px dashed #7b2cbf !important;
+  color: #bb86fc !important;
+}
+
+/* ===== SIDEBAR CARDS (Highlights, Events) ===== */
+body.dark-mode .sidebar-card {
+  background-color: #2a2a2a !important;
+  border: 1px solid #333 !important;
+  color: #ffffff !important;
+}
+
+body.dark-mode .sidebar-card h5 {
+  color: #ffffff !important;
+}
+
+body.dark-mode .event-date {
+  color: #bb86fc !important;
+}
+
+/* ===== FRIEND SUGGESTIONS ===== */
+body.dark-mode .user-suggestions-compact {
+  background-color: #2a2a2a !important;
+  border-radius: 12px !important;
+  padding: 1rem !important;
+  border: 1px solid #333 !important;
+}
+
+body.dark-mode .user-suggestions-compact h4 {
+  color: #ffffff !important;
+}
+
+body.dark-mode .user-suggestions-compact small {
+  color: #aaaaaa !important;
+}
+
+body.dark-mode .user-suggestions-compact strong {
+  color: #ffffff !important;
+}
+
+/* ===== SHARE SIDEBAR ===== */
+body.dark-mode .share-sidebar {
+  background-color: #2a2a2a !important;
+  border-left: 1px solid #333 !important;
+  color: #ffffff !important;
+}
+
+body.dark-mode .share-sidebar h5 {
+  color: #ffffff !important;
+}
+
+body.dark-mode .share-user span {
+  color: #ffffff !important;
+}
+
+body.dark-mode #shareSearch {
+  background-color: #1a1a1a !important;
+  border: 1px solid #444 !important;
+  color: #ffffff !important;
+}
+
+/* ===== COMMENT BOX ===== */
+body.dark-mode .comments {
+  background-color: #1a1a1a !important;
+  color: #ffffff !important;
+}
+
+body.dark-mode .add-comment .comment-input {
+  background-color: #1a1a1a !important;
+  border: 1px solid #444 !important;
+  color: #ffffff !important;
+}
+
+body.dark-mode .comment-submit {
+  color: #bb86fc !important;
+  background: none !important;
+}
+
+/* ===== POST DATE ===== */
+body.dark-mode .post-date {
+  color: #aaaaaa !important;
+}
+
+/* ===== OUTLINE BUTTONS (Add Reminder etc) ===== */
+body.dark-mode .btn-outline-primary {
+  color: #bb86fc !important;
+  border-color: #bb86fc !important;
+  background: transparent !important;
+}
+
+body.dark-mode .btn-outline-primary:hover {
+  background-color: #7b2cbf !important;
+  color: #ffffff !important;
+}
+
+/* ===== DROPDOWN MENU ===== */
+body.dark-mode .dropdown {
+  background-color: #2a2a2a !important;
+  border: 1px solid #333 !important;
+}
+
+body.dark-mode .dropdown a {
+  color: #ffffff !important;
+}
+
+body.dark-mode .dropdown a:hover {
+  background-color: #333333 !important;
+}
+
+/* ===== MODAL ===== */
+body.dark-mode .modal-content {
+  background-color: #2a2a2a !important;
+  color: #ffffff !important;
+  border: 1px solid #444 !important;
+}
+
+body.dark-mode .modal-header,
+body.dark-mode .modal-footer {
+  border-color: #444 !important;
+}
+
+body.dark-mode .modal-title {
+  color: #ffffff !important;
+}
+
+body.dark-mode .close {
+  color: #ffffff !important;
+}/* ===== HOME PAGE SIDEBAR NUCLEAR OVERRIDE ===== */
+
+body.dark-mode aside.right-sidebar,
+body.dark-mode aside.right-sidebar * {
+  background-color: #1a1a1a !important;
+  color: #ffffff !important;
+  border-color: #333 !important;
+}
+
+body.dark-mode aside.right-sidebar .sidebar-card,
+body.dark-mode aside.right-sidebar .stories,
+body.dark-mode aside.right-sidebar .user-suggestions-compact {
+  background-color: #2a2a2a !important;
+  border: 1px solid #333 !important;
+  border-radius: 12px !important;
+}
+
+body.dark-mode aside.right-sidebar .story {
+  background-color: #333333 !important;
+}
+
+body.dark-mode aside.right-sidebar .create-story {
+  background-color: #2a2a2a !important;
+  border: 2px dashed #7b2cbf !important;
+  color: #bb86fc !important;
+}
+
+body.dark-mode aside.right-sidebar img {
+  background-color: transparent !important;
+}
+
+body.dark-mode aside.right-sidebar .btn-outline-primary {
+  color: #bb86fc !important;
+  border: 1px solid #bb86fc !important;
+  background: transparent !important;
+}
+
+body.dark-mode aside.right-sidebar .event-date {
+  color: #bb86fc !important;
+}
+
+body.dark-mode aside.right-sidebar .follow-btn {
+  background-color: #7b2cbf !important;
+  color: #ffffff !important;
+}
+
+body.dark-mode aside.right-sidebar small {
+  color: #aaaaaa !important;
 }

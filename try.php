@@ -1,5 +1,6 @@
 
 <?php
+
 session_start();
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
@@ -120,6 +121,7 @@ $postResult = $postStmt->get_result();
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Connectify Feed</title>
@@ -486,9 +488,8 @@ $postResult = $postStmt->get_result();
 
 
 </head>
-
-
 <body>
+
 <header>
   <div class="logo">Connectify</div>
   <div class="searchbar">
