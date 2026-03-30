@@ -1,5 +1,6 @@
 <?php
 $host = 'localhost';
+// connect.php
 $port = 3307; // updated port
 $user = 'root';
 $password = '';

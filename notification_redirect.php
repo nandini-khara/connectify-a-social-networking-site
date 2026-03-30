@@ -1,57 +1,66 @@
 <?php
+/**
+ * notification_redirect.php
+ * Marks a notification as read then redirects to the correct destination.
+ *
+ * Params:
+ *   ?nid=  notification ID
+ *   ?dest= (optional) encoded destination URL — if absent, goes to profile
+ */
 session_start();
 require 'connect.php';
 
-if (!isset($_SESSION['user_id']) || !isset($_GET['nid'])) {
+if (!isset($_SESSION['user_id'])) {
     header("Location: index.php");
     exit();
 }
 
-$notif_id = intval($_GET['nid']);
+$user_id  = (int)$_SESSION['user_id'];
+$notif_id = (int)($_GET['nid'] ?? 0);
+$dest     = $_GET['dest'] ?? '';
 
-// Fetch notification details
-$stmt = $con->prepare("SELECT * FROM notifications WHERE id = ? AND user_id = ?");
-$stmt->bind_param("ii", $notif_id, $_SESSION['user_id']);
-$stmt->execute();
-$result = $stmt->get_result();
+/* Mark this notification as read */
+if ($notif_id) {
+    $upd = $con->prepare("UPDATE notifications SET is_read=1 WHERE id=? AND user_id=?");
+    $upd->bind_param('ii', $notif_id, $user_id);
+    $upd->execute();
+    $upd->close();
 
-if ($result->num_rows === 0) {
-    header("Location: notifications.php"); // fallback
-    exit();
+    /* If no dest was passed, figure it out from the notification itself */
+    if (!$dest) {
+        $sel = $con->prepare("SELECT type, post_id, comment_id, actor_id FROM notifications WHERE id=? AND user_id=? LIMIT 1");
+        $sel->bind_param('ii', $notif_id, $user_id);
+        $sel->execute();
+        $n = $sel->get_result()->fetch_assoc();
+        $sel->close();
+
+        if ($n) {
+            if ($n['type'] === 'follow') {
+                $dest = 'public_profile.php?user_id=' . (int)$n['actor_id'];
+            } elseif ($n['post_id']) {
+                $dest = 'view_post.php?post_id=' . (int)$n['post_id']
+                      . '&actor_id=' . (int)$n['actor_id']
+                      . '&action='   . urlencode($n['type']);
+                if ($n['type'] === 'comment' && $n['comment_id']) {
+                    $dest .= '&highlight_comment=' . (int)$n['comment_id'];
+                }
+            }
+        }
+    }
 }
 
-$row = $result->fetch_assoc();
-
-// Mark it read
-$update = $con->prepare("UPDATE notifications SET is_read = 1 WHERE id = ?");
-$update->bind_param("i", $notif_id);
-$update->execute();
-
-// Redirect based on type
-switch ($row['type']) {
-    case 'like':
-    case 'comment':
-        if ($row['post_id']) {
-            $actionType = $row['type'] === 'like' ? 'liked' : 'commented';
-            header("Location: view_post.php?post_id={$row['post_id']}&actor_id={$row['actor_id']}&action={$actionType}");
-            exit();
-        }
-        break;
-
-    case 'save':
-    case 'repost':
-        if ($row['post_id']) {
-            header("Location: view_post.php?post_id={$row['post_id']}");
-            exit();
-        }
-        break;
-
-    case 'follow':
-        header("Location: public_profile.php?user_id=" . $row['actor_id']);
+/* Validate dest — only allow same-origin relative paths */
+if ($dest) {
+    $decoded = urldecode($dest);
+    $parsed  = parse_url($decoded);
+    $host    = $_SERVER['HTTP_HOST'] ?? '';
+    $isSafe  = empty($parsed['host']) || $parsed['host'] === $host;
+    if ($isSafe) {
+        header("Location: " . $decoded);
         exit();
-
-    default:
-        header("Location: notifications.php");
-        exit();
+    }
 }
-?>
+
+/* Fallback */
+header("Location: notifications_frontend.php");
+exit();

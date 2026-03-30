@@ -431,7 +431,10 @@ main                     { background: #111 !important; }
 .post                    { background: #1e1e1e !important; border: 1px solid #2e2e2e !important; color: #fff !important; }
 .post p, .post strong    { color: #fff !important; }
 .post-date               { color: #999 !important; }
-.post-actions i          { color: #ccc !important; }
+.post-actions i                        { color: #ccc !important; }
+.post-actions .like-btn .fas.fa-heart  { color: red !important; }
+.post-actions .save-btn .fas.fa-bookmark { color: green !important; }
+/* .post-actions i          { color: #ccc !important; } */
 
 /* Comments */
 .comment-input           { background: #2a2a2a !important; border: 1px solid #3a3a3a !important; color: #fff !important; }

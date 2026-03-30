@@ -21,6 +21,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $_SESSION['user_id'] = $user['user_id'];
             $_SESSION['user_name'] = $user['user_name'];
             
+            
+if ($user['is_suspended']) {
+    $error = 'Your account has been suspended. Contact support@connectify.com';
+    // don't set session, redirect back to login
+}
+
             // Redirect to home page
             header("Location: home.php");
             exit();
