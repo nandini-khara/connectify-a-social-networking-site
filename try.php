@@ -160,9 +160,19 @@ main { display: flex; flex: 1; overflow: hidden; }
   padding: 0.5rem 0;
   scrollbar-width: thin;
 }
+.sv-nav.prev { left: 0; pointer-events: none; }
+.sv-nav.next { right: 0; pointer-events: none; }
 .story-container::-webkit-scrollbar { height: 3px; }
 .story-container::-webkit-scrollbar-thumb { background: #c49de0; border-radius: 3px; }
-
+.sv-header {
+  position: absolute; top: 18px; left: 0; right: 0;
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 12px; z-index: 5;  /* Change from 3 to 5 */
+}.sv-header button {
+  position: relative;
+  z-index: 10;
+  pointer-events: all;
+}
 /* Story Viewer Overlay */
 #storyViewer {
   display: none;

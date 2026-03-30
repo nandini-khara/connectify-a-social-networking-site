@@ -1,7 +1,9 @@
 <?php
 /**
  * get_story_viewers.php
- * ob_start() is THE VERY FIRST LINE so no warning/notice can corrupt JSON output.
+ * Schema: stories(id, user_id, ...)
+ *         story_views(id, story_id, viewer_id, viewed_at)
+ *         users(user_id, user_name, profile_image, ...)
  */
 ob_start();
 error_reporting(0);
@@ -27,17 +29,17 @@ if (!$storyId) {
     exit();
 }
 
-// Verify you own this story
+/* ── Verify the story exists and belongs to this user ── */
 $own = $con->prepare("SELECT id FROM stories WHERE id = ? AND user_id = ?");
 $own->bind_param("ii", $storyId, $me);
 $own->execute();
 if (!$own->get_result()->fetch_assoc()) {
     ob_end_clean();
-    echo json_encode(['error' => "Story id=$storyId not found or not yours (you=$me)"]);
+    echo json_encode(['error' => 'Story not found or not yours']);
     exit();
 }
 
-// Fetch viewers — COALESCE guards against any legacy NULL viewed_at rows
+/* ── Fetch viewers ordered by most recent view ── */
 $st = $con->prepare("
     SELECT
         u.user_id,
@@ -47,7 +49,7 @@ $st = $con->prepare("
     FROM story_views sv
     JOIN users u ON u.user_id = sv.viewer_id
     WHERE sv.story_id = ?
-    ORDER BY sv.viewed_at DESC, sv.id DESC
+    ORDER BY sv.viewed_at DESC
 ");
 $st->bind_param("i", $storyId);
 $st->execute();

@@ -1,7 +1,9 @@
 <?php
 /**
  * add_story.php
- * ob_start() is THE VERY FIRST LINE — single buffer, no nesting
+ * Schema: stories(id, user_id, media_path, media_type, caption, music_url, music_name, bg_color, created_at, expires_at)
+ * NOTE: vid_start_sec / vid_end_sec / muted / song_start_sec do NOT exist as DB columns.
+ *       They are stored in music_name and handled client-side only.
  */
 ob_start();
 error_reporting(0);
@@ -28,15 +30,17 @@ if (!isset($con) || $con->connect_errno) {
 
 $user_id = (int)$_SESSION['user_id'];
 
-/* ── file upload ── */
+/* ── Validate uploaded file ── */
 if (empty($_FILES['story_file']) || $_FILES['story_file']['error'] !== UPLOAD_ERR_OK) {
     jsonExit('error', 'No file uploaded (error code: ' . ($_FILES['story_file']['error'] ?? 'none') . ')');
 }
 
 $file     = $_FILES['story_file'];
 $mimeType = mime_content_type($file['tmp_name']);
-$allowed  = ['image/jpeg','image/png','image/gif','image/webp',
-             'video/mp4','video/webm','video/quicktime','video/x-msvideo'];
+$allowed  = [
+    'image/jpeg','image/png','image/gif','image/webp',
+    'video/mp4','video/webm','video/quicktime','video/x-msvideo'
+];
 
 if (!in_array($mimeType, $allowed)) {
     jsonExit('error', 'File type not allowed: ' . $mimeType);
@@ -47,10 +51,10 @@ if ($file['size'] > 40 * 1024 * 1024) {
 
 $mediaType = (strpos($mimeType, 'video') === 0) ? 'video' : 'image';
 
-/* ── upload dir ── */
+/* ── Upload directory ── */
 $uploadDir = __DIR__ . '/uploads/stories/';
 if (!is_dir($uploadDir) && !mkdir($uploadDir, 0755, true)) {
-    jsonExit('error', 'Cannot create directory: ' . $uploadDir);
+    jsonExit('error', 'Cannot create upload directory');
 }
 
 $ext      = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION)) ?: ($mediaType === 'video' ? 'mp4' : 'jpg');
@@ -62,25 +66,31 @@ if (!move_uploaded_file($file['tmp_name'], $destPath)) {
     jsonExit('error', 'Failed to move uploaded file');
 }
 
-/* ── map POST fields → DB columns ── */
-$caption   = mb_substr($_POST['emojis'] ?? '', 0, 300);
-$musicUrl  = mb_substr($_POST['song_preview'] ?? '', 0, 500);
+/* ── Map POST fields to DB columns ──
+   caption   = emoji sticker string
+   music_url  = iTunes 30-sec preview URL
+   music_name = "Song Title — Artist" (combined, max 200 chars)
+   bg_color   = always #000000 (no column for trim/mute — handled client-side)
+── */
+$caption   = mb_substr($_POST['emojis']        ?? '', 0, 300);
+$musicUrl  = mb_substr($_POST['song_preview']  ?? '', 0, 500);
+
 $musicName = '';
 if (!empty($_POST['song_title'])) {
-    $musicName = mb_substr($_POST['song_title'], 0, 100);
+    $musicName = mb_substr(trim($_POST['song_title']), 0, 100);
     if (!empty($_POST['song_artist'])) {
-        $musicName .= ' — ' . mb_substr($_POST['song_artist'], 0, 95);
+        $musicName .= ' — ' . mb_substr(trim($_POST['song_artist']), 0, 95);
     }
 }
 $musicName = mb_substr($musicName, 0, 200);
 $bgColor   = '#000000';
 
-/* ── insert ── */
+/* ── Insert into stories table ── */
 $stmt = $con->prepare("
     INSERT INTO stories
-      (user_id, media_path, media_type, caption, music_url, music_name, bg_color, expires_at)
+        (user_id, media_path, media_type, caption, music_url, music_name, bg_color, expires_at)
     VALUES
-      (?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 24 HOUR))
+        (?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 24 HOUR))
 ");
 
 if (!$stmt) {
@@ -98,6 +108,8 @@ if (!$stmt->execute()) {
 }
 
 $newId = $stmt->insert_id;
+
+// Clean up any already-expired stories
 $con->query("DELETE FROM stories WHERE expires_at < NOW()");
 
 ob_end_clean();

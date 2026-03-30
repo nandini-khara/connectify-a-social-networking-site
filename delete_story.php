@@ -1,7 +1,8 @@
 <?php
 /**
  * delete_story.php
- * ob_start() is THE VERY FIRST LINE so no warning/notice can corrupt JSON output.
+ * Schema: stories(id, user_id, media_path, ...)
+ *         story_views(id, story_id, viewer_id, viewed_at)
  */
 ob_start();
 error_reporting(0);
@@ -27,15 +28,15 @@ if (!$storyId) {
     exit();
 }
 
-// Verify ownership
-$st = $con->prepare("SELECT user_id, media_path FROM stories WHERE id = ?");
+/* ── Verify the story exists and belongs to this user ── */
+$st = $con->prepare("SELECT id, user_id, media_path FROM stories WHERE id = ?");
 $st->bind_param("i", $storyId);
 $st->execute();
 $story = $st->get_result()->fetch_assoc();
 
 if (!$story) {
     ob_end_clean();
-    echo json_encode(['status' => 'error', 'msg' => "Story id=$storyId not found"]);
+    echo json_encode(['status' => 'error', 'msg' => 'Story not found']);
     exit();
 }
 if ((int)$story['user_id'] !== $me) {
@@ -44,16 +45,16 @@ if ((int)$story['user_id'] !== $me) {
     exit();
 }
 
-// Delete story_views rows first (safe even if no FK constraint)
+/* ── Delete views first (story_views.story_id FK) ── */
 $dv = $con->prepare("DELETE FROM story_views WHERE story_id = ?");
 if ($dv) {
     $dv->bind_param("i", $storyId);
     $dv->execute();
 }
 
-// Delete the media file — handle Windows (XAMPP) paths safely
+/* ── Delete the media file from disk ── */
 if (!empty($story['media_path'])) {
-    // Normalize: replace any forward slash with the OS separator
+    // Normalize path separators for Windows (XAMPP) compatibility
     $rel  = ltrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $story['media_path']), DIRECTORY_SEPARATOR);
     $full = __DIR__ . DIRECTORY_SEPARATOR . $rel;
     if (file_exists($full)) {
@@ -61,7 +62,7 @@ if (!empty($story['media_path'])) {
     }
 }
 
-// Delete the story row
+/* ── Delete the story row ── */
 $del = $con->prepare("DELETE FROM stories WHERE id = ? AND user_id = ?");
 $del->bind_param("ii", $storyId, $me);
 $del->execute();
@@ -70,5 +71,5 @@ ob_end_clean();
 if ($del->affected_rows > 0) {
     echo json_encode(['status' => 'success']);
 } else {
-    echo json_encode(['status' => 'error', 'msg' => 'No rows deleted — already gone? ' . $con->error]);
+    echo json_encode(['status' => 'error', 'msg' => 'Story already deleted or not found']);
 }
