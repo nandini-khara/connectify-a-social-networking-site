@@ -1,12 +1,14 @@
 <?php
-$otp2=$_POST['otp'];
+// verify_otp1.php
 session_start();
-if($_SESSION['otp']==$otp2)
-{
-echo '<script> alert("email is verified")</script>';
-header('location:insert.php');
-}
-else{
-header('location:enterotp1.php?msg=incorrect otp!');
+$otp2 = $_POST['otp'];
+
+if ($_SESSION['otp'] == $otp2) {
+    // Don't echo anything before header()
+    header('Location: insert.php');
+    exit();
+} else {
+    header('Location: enterotp1.php?msg=Incorrect+OTP!');
+    exit();
 }
 ?>

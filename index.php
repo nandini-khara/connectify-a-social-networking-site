@@ -1,20 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- index.php -->
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Connectify - Login</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet"> -->
+   <?php include 'brand_header.php'; ?>
   <style>
     * {
       box-sizing: border-box;
-      font-family: 'Inter', sans-serif;
+      /* font-family: 'Inter', sans-serif; */
+      font-family: 'DM Sans', sans-serif;
       margin: 0;
       padding: 0;
     }
 
     body {
-      background: linear-gradient(to right, #a18cd1, #fbc2eb);
+      /* background: linear-gradient(to right, #a18cd1, #fbc2eb); */
+      background: linear-gradient(135deg, #e8d5f5 0%, #fce4ec 100%);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -141,8 +145,12 @@
 <body>
 
   <div class="container">
-    <div class="app-name">Connectify</div>
-    <h2>Welcome</h2>
+    <!-- <div class="app-name">Connectify</div>
+    <h2>Welcome</h2> -->
+    <div class="brand">
+  <div class="brand-name">Connectify</div>
+  <!-- <div class="brand-sub">Connect · Share · Belong</div> -->
+</div>
 
     <!-- Error Message -->
     <?php if (isset($_GET['error'])): ?>

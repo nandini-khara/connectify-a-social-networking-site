@@ -142,6 +142,14 @@ main { display: flex; flex: 1; overflow: hidden; }
 .sidebar-card h5 { font-weight: 600; margin-bottom: .75rem; }
 .post-date { margin-top: 6px; font-size: .8rem; color: #777; align-self: flex-end; }
 @media (max-width: 992px) { .right-sidebar { display: none; } }
+/* brand name css */
+
+.brand-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #ffffff;
+}
 
 /* ══════════════════════════════════════════════
    STORIES SECTION (right sidebar — original position)
@@ -160,9 +168,19 @@ main { display: flex; flex: 1; overflow: hidden; }
   padding: 0.5rem 0;
   scrollbar-width: thin;
 }
+.sv-nav.prev { left: 0; pointer-events: none; }
+.sv-nav.next { right: 0; pointer-events: none; }
 .story-container::-webkit-scrollbar { height: 3px; }
 .story-container::-webkit-scrollbar-thumb { background: #c49de0; border-radius: 3px; }
-
+.sv-header {
+  position: absolute; top: 18px; left: 0; right: 0;
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 12px; z-index: 5;  /* Change from 3 to 5 */
+}.sv-header button {
+  position: relative;
+  z-index: 10;
+  pointer-events: all;
+}
 /* Story Viewer Overlay */
 #storyViewer {
   display: none;
@@ -431,7 +449,9 @@ main { background: #111 !important; }
 <body>
 
 <header>
-  <div class="logo">Connectify</div>
+  <!-- <div class="logo">Connectify</div> -->
+   <div class="brand-name">Connectify</div>
+
   <div class="searchbar">
     <i class="fas fa-search"></i>
     <input type="text" placeholder="Search...">

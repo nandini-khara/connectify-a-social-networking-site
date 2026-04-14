@@ -1,14 +1,19 @@
+<?php
+// enterotp1.php
+session_start();
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Email Verification</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet"/>
+  <!-- <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet"/> -->
+   <?php include 'brand_header.php'; ?>
   <style>
     * {
       box-sizing: border-box;
-      font-family: 'Inter', sans-serif;
+     font-family: 'DM Sans', sans-serif;
     }
 
     body {
@@ -17,16 +22,18 @@
       justify-content: center;
       align-items: center;
       height: 100vh;
-      background: #f5f5f5;
+      background: linear-gradient(135deg, #e8d5f5 0%, #fce4ec 100%);
     }
 
     .container {
       background: white;
       padding: 2rem 2.5rem;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      border-radius: 24px;
+box-shadow: 0 24px 48px rgba(106,27,154,.13);
+max-width: 440px;
+      
       width: 100%;
-      max-width: 400px;
+      
       text-align: center;
     }
 
@@ -73,28 +80,42 @@
       font-size: 0.9rem;
       margin-bottom: 1rem;
     }
+
+    .success {
+      color: green;
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+    }
   </style>
 </head>
 <body>
 
 <div class="container">
+  <div class="brand">
+    <div class="brand-name">Connectify</div>
+    <!-- <div class="brand-sub">Connect · Share · Belong</div> -->
+  </div>
   <h2>Email Verification</h2>
-  <!-- Error Message -->
+ 
+
   <?php if (isset($_GET['msg'])): ?>
     <div class="error"><?php echo htmlspecialchars($_GET['msg']); ?></div>
   <?php endif; ?>
-  <p>Enter the 6-digit code sent to <span><b>
+
+  <?php if (isset($_SESSION['otp_sent'])): ?>
+    <div class="success"><?php echo htmlspecialchars($_SESSION['otp_sent']); unset($_SESSION['otp_sent']); ?></div>
+  <?php endif; ?>
+
+  <p>Enter the 6-digit code sent to <b>
     <?php
-    session_start();
-if (isset($_SESSION['signup_data']['email_id'])) {
-    echo $_SESSION['signup_data']['email_id'];
-} else {
-    echo 'Email not found in session!';
-}
+    if (isset($_SESSION['signup_data']['email_id'])) {
+        echo htmlspecialchars($_SESSION['signup_data']['email_id']);
+    } else {
+        echo 'Email not found in session!';
+    }
+    ?>
+  </b></p>
 
-
-   // echo $_SESSION['email'];
-    ?></b></span></p>
   <form action="verify_otp1.php" method="POST">
     <input type="text" name="otp" class="otp-input" maxlength="6" pattern="\d{6}" placeholder="Enter OTP" required />
     <button type="submit" class="verify-btn">Verify</button>
@@ -103,7 +124,6 @@ if (isset($_SESSION['signup_data']['email_id'])) {
 </div>
 
 <script>
-  // Remove ?msg=... from URL after showing error once
   if (window.location.search.includes('msg=')) {
     const url = new URL(window.location);
     url.searchParams.delete('msg');
